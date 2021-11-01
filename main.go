@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"flag"
 	"log"
 	"net/url"
@@ -12,6 +13,50 @@ import (
 )
 
 var addr = flag.String("addr", "api.p2pquake.net:443", "http service address")
+
+type Message struct {
+	Area       int     `json:"area"`
+	ID         string  `json:"_id"`
+	Code       int     `json:"code"`
+	Confidence float64 `json:"confidence"`
+	Count      int     `json:"count"`
+	CreatedAt  string  `json:"created_at"`
+	Expire     string  `json:"expire"`
+	Hop        int     `json:"hop"`
+	StartedAt  string  `json:"started_at"`
+	Time       string  `json:"time"`
+	Type       string  `json:"type"`
+	UID        string  `json:"uid"`
+	UpdatedAt  string  `json:"updated_at"`
+	UserAgent  string  `json:"user-agent"`
+	Ver        string  `json:"ver"`
+	// TODO: "area_confidences" 9611_quake_detect_analysis.json as map
+	Areas []struct {
+		ID   int `json:"id"`
+		Peer int `json:"peer"`
+	} `json:"areas"`
+	Earthquake []struct {
+		DomesticTsunami string `json:"domesticTsunami"`
+		ForeignTsunami  string `json:"foreignTsunami"`
+		Hypocenter      []struct {
+			Name      string  `json:"name"`
+			Depth     int     `json:"depth"`
+			Latitude  float64 `json:"latitude"`
+			Longitude float64 `json:"longitude"`
+			Magnitude float64 `json:"magnitude"`
+		} `json:"hypocenter"`
+		MaxScale int    `json:"maxScale"`
+		Time     string `json:"time"`
+	} `json:"earthquake"`
+	Issue []struct {
+		Correct string `json:"correct"`
+		Source  string `json:"source"`
+		Time    string `json:"time"`
+		Type    string `json:"type"`
+	} `json:"issue"`
+	// TODO: "points" as map (551_quake.json)
+
+}
 
 func main() {
 	flag.Parse()
@@ -31,6 +76,7 @@ func main() {
 		log.Fatal("dial:", err)
 	}
 	defer c.Close()
+	log.Printf("connected")
 
 	done := make(chan struct{})
 
@@ -42,7 +88,9 @@ func main() {
 				log.Println("read:", err)
 				return
 			}
-			log.Printf("recv: %s", message)
+			msg, _ := json.Marshal(message)
+			log.Printf("recv: %s", string(msg))
+			//log.Printf("recv: %s", message)
 		}
 	}()
 
