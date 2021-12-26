@@ -18,10 +18,10 @@ type MessageQuake551 struct {
 	Time       string `json:"time"`
 	UserAgent  string `json:"user-agent"`
 	Version    string `json:"ver"`
-	Earthquake []struct {
+	Earthquake struct {
 		DomesticTsunami string `json:"domesticTsunami"`
 		ForeignTsunami  string `json:"foreignTsunami"`
-		Hypocenter      []struct {
+		Hypocenter      struct {
 			Name      string  `json:"name"`
 			Depth     int     `json:"depth"`
 			Latitude  float64 `json:"latitude"`
@@ -31,7 +31,7 @@ type MessageQuake551 struct {
 		MaxScale int    `json:"maxScale"`
 		Time     string `json:"time"`
 	} `json:"earthquake"`
-	Issue []struct {
+	Issue struct {
 		Correct string `json:"correct"`
 		Source  string `json:"source"`
 		Time    string `json:"time"`
@@ -48,7 +48,21 @@ type MessageQuake551 struct {
 }
 
 type MessageTsunami552 struct {
-	// Not implemented yet
+	// Not tested
+	Code      int    `json:"code"`
+	Id        string `json:"id"`
+	Time      string `json:"time"`
+	Cancelled bool   `json:"cancelled"`
+	Issue     struct {
+		Source string `json:"source"`
+		Time   string `json:"time"`
+		Type   string `json:"type"`
+	}
+	Areas []struct {
+		Name      string `json:"name"`
+		Grade     string `json:"grade"`
+		Immediate bool   `json:"immediate"`
+	} `json:"areas"`
 }
 
 type MessageEmergencyQuake554 struct {
@@ -109,7 +123,7 @@ func Subscribe(messageType ...int) {
 func main() {
 
 	var addr = flag.String("addr", "api.p2pquake.net:443", "http service address")
-	log.SetFlags(0)
+	logger := log.New(os.Stdout, "[P2P-JISHIN-NET] ", log.Ldate|log.Ltime)
 	flag.Parse()
 
 	// TODO: Handle the subscription to certain messages somehow
@@ -127,17 +141,17 @@ func main() {
 
 	// Specify secure web socket (https)
 	u := url.URL{Scheme: "wss", Host: *addr, Path: "/v2/ws"}
-	log.Printf("connecting to %s", u.String())
+	logger.Printf("Connecting to %s", u.String())
 
 	c, resp, err := websocket.DefaultDialer.Dial(u.String(), nil)
 	if err == websocket.ErrBadHandshake {
-		log.Printf("Error: handshake failed with status %d", resp.StatusCode)
+		logger.Printf("Error: handshake failed with status %d", resp.StatusCode)
 	}
 	if err != nil {
-		log.Fatal("Error: ", err)
+		logger.Fatal("Error: ", err)
 	}
 	defer c.Close()
-	log.Printf("Connected")
+	logger.Printf("Connected")
 
 	done := make(chan struct{})
 
@@ -146,61 +160,80 @@ func main() {
 		for {
 			_, message, err := c.ReadMessage()
 			if err != nil {
-				log.Println("read:", err)
+				logger.Println("Read:", err)
 				return
 			}
 			var getCode struct {
 				Code int `json:"code"`
 			}
 			if err := json.Unmarshal([]byte(message), &getCode); err != nil {
-				panic(err)
+				logger.Printf("Error: %s", err)
+				break
 			}
 			switch getCode.Code {
 			case 551:
+				// Earthquake
 				if contains(subscribe, 551) {
 					var unmarshalMessageQuake551 MessageQuake551
 					if err := json.Unmarshal([]byte(message), &unmarshalMessageQuake551); err != nil {
-						panic(err)
+						logger.Printf("Error: %s", err)
+						logger.Printf("JSON Message: %s", message)
+						break
 					}
 					// Call processing function
 				}
 			case 552:
+				// Tsunami
 				if contains(subscribe, 552) {
 					var unmarshalMessageTsunami552 MessageTsunami552
 					if err := json.Unmarshal([]byte(message), &unmarshalMessageTsunami552); err != nil {
-						panic(err)
+						logger.Printf("Error: %s", err)
+						logger.Printf("JSON Message: %s", message)
+						break
 					}
 					// Call processing function
 				}
 			case 554:
+				// Emergency Quake
 				if contains(subscribe, 554) {
 					var unmarshalMessageEmergencyQuake554 MessageEmergencyQuake554
 					if err := json.Unmarshal([]byte(message), &unmarshalMessageEmergencyQuake554); err != nil {
-						panic(err)
+						logger.Printf("Error: %s", err)
+						logger.Printf("JSON Message: %s", message)
+						break
 					}
 					// Call processing function
 				}
 			case 555:
+				// Peers
 				if contains(subscribe, 555) {
 					var unmarshalMessagePeers555 MessagePeers555
 					if err := json.Unmarshal([]byte(message), &unmarshalMessagePeers555); err != nil {
-						panic(err)
+						logger.Printf("Error: %s", err)
+						logger.Printf("JSON Message: %s", message)
+						break
 					}
 					// Call processing function
 				}
 			case 561:
+				// Quake Detect
 				if contains(subscribe, 561) {
 					var unmarshalMessageQuakeDetect561 MessageQuakeDetect561
 					if err := json.Unmarshal([]byte(message), &unmarshalMessageQuakeDetect561); err != nil {
-						panic(err)
+						logger.Printf("Error: %s", err)
+						logger.Printf("JSON Message: %s", message)
+						break
 					}
 					// Call processing function
 				}
 			case 9611:
+				// Quake Detect Analysis
 				if contains(subscribe, 9611) {
 					var unmarshalMessageQuakeDetectAnalysis9611 MessageQuakeDetectAnalysis9611
 					if err := json.Unmarshal([]byte(message), &unmarshalMessageQuakeDetectAnalysis9611); err != nil {
-						panic(err)
+						logger.Printf("Error: %s", err)
+						logger.Printf("JSON Message: %s", message)
+						break
 					}
 					// Call processing function
 				}
@@ -218,17 +251,17 @@ func main() {
 		case t := <-ticker.C:
 			err := c.WriteMessage(websocket.TextMessage, []byte(t.String()))
 			if err != nil {
-				log.Println("write:", err)
+				logger.Println("Write:", err)
 				return
 			}
 		case <-interrupt:
-			log.Println("interrupt")
+			logger.Println("Interrupted")
 
 			// Cleanly close the connection by sending a close message and then
 			// waiting (with timeout) for the server to close the connection.
 			err := c.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""))
 			if err != nil {
-				log.Println("write close:", err)
+				logger.Println("Write close:", err)
 				return
 			}
 			select {
