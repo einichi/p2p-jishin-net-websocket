@@ -1,8 +1,9 @@
-package main
+package p2pJishinNetWebsocket
 
 import (
 	"encoding/json"
 	"flag"
+	"fmt"
 	"log"
 	"net/url"
 	"os"
@@ -161,6 +162,7 @@ func main() {
 			_, message, err := c.ReadMessage()
 			if err != nil {
 				logger.Println("Read:", err)
+				logger.Println("Erroneous message: ", string(message))
 				return
 			}
 			var getCode struct {
@@ -170,6 +172,7 @@ func main() {
 				logger.Printf("Error: %s", err)
 				break
 			}
+			logger.Printf("Received message with code %d", getCode.Code)
 			switch getCode.Code {
 			case 551:
 				// Earthquake
@@ -191,6 +194,10 @@ func main() {
 						logger.Printf("JSON Message: %s", message)
 						break
 					}
+					// Debugging, remove this later
+					logger.Println("Received Tsunami message, dumping data")
+					fmt.Printf("%+v\n", unmarshalMessageTsunami552)
+					// End of debug, remove this later
 					// Call processing function
 				}
 			case 554:
