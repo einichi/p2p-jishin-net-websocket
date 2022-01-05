@@ -13,6 +13,13 @@ import (
 	"github.com/gorilla/websocket"
 )
 
+type WebsocketClient struct {
+	hostname string
+	port     string
+	scheme   string
+	path     string
+}
+
 type MessageQuake551 struct {
 	Code       int    `json:"code"`
 	Id         string `json:"id"`
